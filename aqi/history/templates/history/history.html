@@ -1,57 +1,61 @@
 {% extends "layout.html" %}
 {% load static tailwind_tags %}
-
+{% block title %}
+    History
+{% endblock %}
 {% block content %}
 <div class="container mx-auto px-4 py-6">
-    <h1 class="text-3xl font-semibold mb-6 text-center">AQI Prediction History</h1>
+    <h1 class="text-3xl font-bold mb-6 text-center text-blue-900">AQI Prediction History</h1>
     
-    <form method="get" action="">
-        <input type="date" name="date" value="{{ selected_date|default:'' }}">
-        <button type="submit">Filter</button>
+    <form method="get" action="" class="mb-6">
+        <input type="date" name="date" value="{{ selected_date|default:'' }}" class="rounded-lg border-blue-200">
+        <button type="submit" class="ml-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Filter</button>
     </form>
     
     {% if predictions %}
-        <div class="overflow-x-auto bg-white rounded-lg shadow-md">
-            <table class="min-w-full">
-                <thead class="bg-gray-100">
-                    <tr>
-                        <th class="py-3 px-6 text-left text-sm font-medium text-gray-700">Date/Time</th>
-                        <th class="py-3 px-6 text-left text-sm font-medium text-gray-700">PM2.5 (μg/m³)</th>
-                        <th class="py-3 px-6 text-left text-sm font-medium text-gray-700">O3 (ppb)</th>
-                        <th class="py-3 px-6 text-left text-sm font-medium text-gray-700">Overall AQI</th>
-                        <th class="py-3 px-6 text-left text-sm font-medium text-gray-700">AQI Category</th>
-                        <th class="py-3 px-6 text-left text-sm font-medium text-gray-700">Model Type</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                    {% for prediction in predictions %}
-                        <tr class="hover:bg-gray-50 transition-colors duration-200">
-                            <td class="py-4 px-6 text-sm text-gray-900">
-                                {{ prediction.prediction_datetime|date:"Y-m-d H:i" }}
-                            </td>
-                            <td class="py-4 px-6 text-sm text-gray-900">
-                                {{ prediction.pm25_prediction|floatformat:2 }}
-                            </td>
-                            <td class="py-4 px-6 text-sm text-gray-900">
-                                {{ prediction.o3_prediction|floatformat:2 }}
-                            </td>
-                            <td class="py-4 px-6 text-sm text-gray-900">
-                                {{ prediction.overall_aqi|floatformat:0 }}
-                            </td>
-                            <td class="py-4 px-6 text-sm text-gray-900">
-                                {{ prediction.aqi_category }}
-                            </td>
-                            <td class="py-4 px-6 text-sm text-gray-900">
-                                {{ prediction.model_type }}
-                            </td>
+        <div class="glass-card shine rounded-2xl p-8">
+            <div class="overflow-x-auto">
+                <table class="min-w-full">
+                    <thead class="bg-blue-50/50 border border-blue-100">
+                        <tr>
+                            <th class="py-3 px-6 text-left text-sm font-medium text-blue-900">Date/Time</th>
+                            <th class="py-3 px-6 text-left text-sm font-medium text-blue-900">PM2.5 (μg/m³)</th>
+                            <th class="py-3 px-6 text-left text-sm font-medium text-blue-900">O3 (ppb)</th>
+                            <th class="py-3 px-6 text-left text-sm font-medium text-blue-900">Overall AQI</th>
+                            <th class="py-3 px-6 text-left text-sm font-medium text-blue-900">AQI Category</th>
+                            <th class="py-3 px-6 text-left text-sm font-medium text-blue-900">Model Type</th>
                         </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody class="bg-white/80 backdrop-blur-sm">
+                        {% for prediction in predictions %}
+                            <tr class="hover:bg-blue-50/50 transition-colors duration-200 border-b border-blue-100">
+                                <td class="py-4 px-6 text-sm text-blue-900">
+                                    {{ prediction.prediction_datetime|date:"Y-m-d H:i" }}
+                                </td>
+                                <td class="py-4 px-6 text-sm text-blue-900">
+                                    {{ prediction.pm25_prediction|floatformat:2 }}
+                                </td>
+                                <td class="py-4 px-6 text-sm text-blue-900">
+                                    {{ prediction.o3_prediction|floatformat:2 }}
+                                </td>
+                                <td class="py-4 px-6 text-sm text-blue-900">
+                                    {{ prediction.overall_aqi|floatformat:0 }}
+                                </td>
+                                <td class="py-4 px-6 text-sm text-blue-900">
+                                    {{ prediction.aqi_category }}
+                                </td>
+                                <td class="py-4 px-6 text-sm text-blue-900">
+                                    {{ prediction.model_type }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     {% else %}
-        <div class="text-center py-8">
-            <p class="text-gray-500 text-lg">No prediction history available.</p>
+        <div class="glass-card shine rounded-2xl p-8 text-center">
+            <p class="text-blue-700 text-lg">No prediction history available.</p>
         </div>
     {% endif %}
 </div>
