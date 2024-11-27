@@ -68,7 +68,10 @@
                             <ul class="space-y-6">
                                 <li class="flex items-center gap-4 p-4 rounded-lg bg-blue-50/50 hover:bg-blue-100/80 hover:scale-[1.02] hover:shadow-md transition-all duration-300 ease-in-out border border-blue-100 hover:border-blue-300">
                                     <span class="text-blue-900 font-bold">AQI:</span>
-                                    <span class="text-blue-700 font-extrabold text-xl">{{ aqi.list.0.main.aqi }}</span>
+                                    <span class="text-blue-700 font-extrabold text-xl">
+                                        {{ aqi.list.0.main.calculated_aqi }} 
+                                        ({{ aqi.list.0.main.aqi_category }})
+                                    </span>
                                 </li>
                                 <li class="flex items-center gap-4 p-4 rounded-lg bg-blue-50/50 hover:bg-blue-100/80 hover:scale-[1.02] hover:shadow-md transition-all duration-300 ease-in-out border border-blue-100 hover:border-blue-300">
                                     <span class="text-blue-900 font-bold">PM2.5:</span>
@@ -153,38 +156,155 @@
     </div>
 
     <script>
-        var map = L.map('aqi-map').setView([28.3949, 84.1240], 5);  // Centered on Nepal
+        // Initialize the map centered on Nepal
+        var map = L.map('aqi-map').setView([28.3949, 84.1240], 7);
 
+        // Add the OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
-        //locations in Nepal (latitude, longitude)
+        // Define locations in Nepal
         var locations = [
             { name: "Kathmandu", lat: 27.7172, lon: 85.3240 },
             { name: "Pokhara", lat: 28.2096, lon: 83.9856 },
             { name: "Biratnagar", lat: 26.4622, lon: 87.2830 },
             { name: "Nepalgunj", lat: 28.1001, lon: 81.6543 },
             { name: "Bhaktapur", lat: 27.6710, lon: 85.4282 }
-            // Add more location
         ];
 
-        // Add custom marker styling
-        var customIcon = L.divIcon({
-            className: 'custom-div-icon',
-            html: "<div class='marker-pin'></div>",
-            iconSize: [30, 42],
-            iconAnchor: [15, 42]
+        function calculateAQIPM25(pm25) {
+            if (pm25 <= 12.0) {
+                return linearInterpolation(0, 50, 0, 12.0, pm25);
+            } else if (pm25 <= 35.4) {
+                return linearInterpolation(51, 100, 12.1, 35.4, pm25);
+            } else if (pm25 <= 55.4) {
+                return linearInterpolation(101, 150, 35.5, 55.4, pm25);
+            } else if (pm25 <= 150.4) {
+                return linearInterpolation(151, 200, 55.5, 150.4, pm25);
+            } else if (pm25 <= 250.4) {
+                return linearInterpolation(201, 300, 150.5, 250.4, pm25);
+            } else if (pm25 <= 350.4) {
+                return linearInterpolation(301, 400, 250.5, 350.4, pm25);
+            } else {
+                return linearInterpolation(401, 500, 350.5, 500.4, pm25);
+            }
+        }
+
+        function calculateAQIO3(o3) {
+            // Convert µg/m³ to ppb
+            const o3_ppb = o3 / 1.96;
+            
+            if (o3_ppb <= 54) {
+                return linearInterpolation(0, 50, 0, 54, o3_ppb);
+            } else if (o3_ppb <= 70) {
+                return linearInterpolation(51, 100, 55, 70, o3_ppb);
+            } else if (o3_ppb <= 85) {
+                return linearInterpolation(101, 150, 71, 85, o3_ppb);
+            } else if (o3_ppb <= 105) {
+                return linearInterpolation(151, 200, 86, 105, o3_ppb);
+            } else if (o3_ppb <= 200) {
+                return linearInterpolation(201, 300, 106, 200, o3_ppb);
+            } else {
+                return linearInterpolation(301, 500, 201, 600, o3_ppb);
+            }
+        }
+
+        function linearInterpolation(aqiLow, aqiHigh, concLow, concHigh, conc) {
+            return Math.round(((aqiHigh - aqiLow) / (concHigh - concLow)) * (conc - concLow) + aqiLow);
+        }
+
+        function getAQICategory(aqi) {
+            if (aqi <= 50) {
+                return "Good";
+            } else if (aqi <= 100) {
+                return "Moderate";
+            } else if (aqi <= 150) {
+                return "Unhealthy for Sensitive Groups";
+            } else if (aqi <= 200) {
+                return "Unhealthy";
+            } else if (aqi <= 300) {
+                return "Very Unhealthy";
+            } else {
+                return "Hazardous";
+            }
+        }
+
+        function getAQIColor(aqi) {
+            if (aqi <= 50) {
+                return "#00e400"; // green
+            } else if (aqi <= 100) {
+                return "#ffff00"; // yellow
+            } else if (aqi <= 150) {
+                return "#ff7e00"; // orange
+            } else if (aqi <= 200) {
+                return "#ff0000"; // red
+            } else if (aqi <= 300) {
+                return "#8f3f97"; // purple
+            } else {
+                return "#7e0023"; // maroon
+            }
+        }
+
+        // Fetch AQI data for each location
+        locations.forEach(location => {
+            fetch(`https://api.openweathermap.org/data/2.5/air_pollution?lat=${location.lat}&lon=${location.lon}&appid={{ weather_api_key }}`)
+                .then(response => response.json())
+                .then(data => {
+                    var pm25 = data.list[0].components.pm2_5;
+                    var o3 = data.list[0].components.o3;
+                    
+                    // Calculate AQI for both pollutants
+                    var aqiPM25 = calculateAQIPM25(pm25);
+                    var aqiO3 = calculateAQIO3(o3);
+                    
+                    // Overall AQI is the maximum of the two
+                    var finalAQI = Math.max(aqiPM25, aqiO3);
+                    var category = getAQICategory(finalAQI);
+                    var color = getAQIColor(finalAQI);
+
+                    // Create popup content
+                    var aqiPopup = `
+                        <div class="p-4">
+                            <h3 class="font-bold text-lg mb-2">${location.name}</h3>
+                            <div class="space-y-2">
+                                <p><span class="font-semibold">AQI:</span> ${finalAQI}</p>
+                                <p><span class="font-semibold">Category:</span> <span style="color: ${color}">${category}</span></p>
+                                <p><span class="font-semibold">PM2.5:</span> ${pm25} µg/m³ (AQI: ${aqiPM25})</p>
+                                <p><span class="font-semibold">O₃:</span> ${o3} µg/m³ (AQI: ${aqiO3})</p>
+                            </div>
+                        </div>
+                    `;
+
+                    // Create and add marker
+                    var marker = L.marker([location.lat, location.lon], {
+                        icon: L.divIcon({
+                            className: 'custom-div-icon',
+                            html: `<div class="marker-pin" style="background: ${color}"></div>`,
+                            iconSize: [30, 42],
+                            iconAnchor: [15, 42]
+                        })
+                    }).addTo(map);
+
+                    // Add popup to marker
+                    marker.bindPopup(aqiPopup, {
+                        maxWidth: 300,
+                        className: 'custom-popup'
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching AQI data:', error);
+                });
         });
-        
+
+        // Add custom styles
         const style = document.createElement('style');
         style.textContent = `
             .marker-pin {
                 width: 30px;
                 height: 30px;
                 border-radius: 50% 50% 50% 0;
-                background: #00796b;
                 position: absolute;
                 transform: rotate(-45deg);
                 left: 50%;
@@ -201,32 +321,17 @@
                 position: absolute;
                 border-radius: 50%;
             }
+            .custom-popup .leaflet-popup-content-wrapper {
+                background: rgba(255, 255, 255, 0.95);
+                border-radius: 8px;
+                box-shadow: 0 3px 14px rgba(0,0,0,0.2);
+            }
+            .custom-popup .leaflet-popup-content {
+                margin: 0;
+                font-family: 'Arial', sans-serif;
+            }
         `;
         document.head.appendChild(style);
-        
-        // Fetch AQI for each location
-        locations.forEach(location => {
-            fetch(`https://api.openweathermap.org/data/2.5/air_pollution?lat=${location.lat}&lon=${location.lon}&appid=601b31f1c2541b300a00720f35e6ed58`)
-                .then(response => response.json())
-                .then(data => {
-                    var aqi = data.list[0].main.aqi;
-                    var pm25 = data.list[0].components.pm2_5;
-                    var o3 = data.list[0].components.o3;
-
-                    var aqiPopup = `
-                        <b>${location.name}, Nepal</b><br>
-                        AQI: ${aqi}<br>
-                        PM2.5: ${pm25} µg/m³<br>
-                        O₃: ${o3} µg/m³
-                    `;
-
-                    L.marker([location.lat, location.lon], {icon: customIcon}).addTo(map)
-                        .bindPopup(aqiPopup);
-                })
-                .catch(error => {
-                    console.error('Error fetching AQI data:', error);
-                });
-        });
     </script>
 </body>
 {% endblock %}
